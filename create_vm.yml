@@ -1,5 +1,5 @@
-- name: Create GCP Compute Engine VM
-  hosts: local
+- name: Create GCP VM and configure it
+  hosts: localhost
   gather_facts: no
   collections:
     - google.cloud
@@ -11,6 +11,7 @@
     instance_name: "ansible-vm"
     image_family: "debian-11"
     image_project: "debian-cloud"
+    ssh_user: "YOUR_USERNAME"
 
   tasks:
 
@@ -33,9 +34,35 @@
               - name: "External NAT"
                 type: "ONE_TO_ONE_NAT"
 
+        metadata:
+          items:
+            - key: ssh-keys
+              value: "{{ ssh_user }}:{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+
         state: present
       register: vm_output
 
-    - name: Show VM details
-      debug:
-        var: vm_output
+    - name: Wait for SSH to come up
+      wait_for:
+        host: "{{ vm_output.networkInterfaces[0].accessConfigs[0].natIP }}"
+        port: 22
+        delay: 10
+        timeout: 300
+
+    - name: Add new VM to inventory
+      add_host:
+        name: gcp_vm
+        ansible_host: "{{ vm_output.networkInterfaces[0].accessConfigs[0].natIP }}"
+        ansible_user: "{{ ssh_user }}"
+        ansible_ssh_private_key_file: "~/.ssh/id_rsa"
+
+- name: Configure VM (Install Nginx)
+  hosts: gcp_vm
+  become: yes
+
+  tasks:
+    - name: Install nginx
+      apt:
+        name: nginx
+        state: present
+        update_cache: yes
