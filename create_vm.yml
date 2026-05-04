@@ -5,13 +5,13 @@
     - google.cloud
 
   vars:
-    project_id: "YOUR_GCP_PROJECT_ID"
+    project_id: "project-5f0d9702-ce65-4be7-ba2"
     zone: "us-central1-a"
     machine_type: "e2-medium"
     instance_name: "ansible-vm"
     image_family: "debian-11"
     image_project: "debian-cloud"
-    ssh_user: "YOUR_USERNAME"
+    ssh_user: "gcpfreetrail6"        
 
   tasks:
 
@@ -30,7 +30,7 @@
               source_image: "projects/{{ image_project }}/global/images/family/{{ image_family }}"
 
         network_interfaces:
-          - network: "global/networks/default"
+          - network: "https://www.googleapis.com/compute/v1/projects/{{ project_id }}/global/networks/default"
             access_configs:
               - name: "External NAT"
                 type: "ONE_TO_ONE_NAT"
@@ -41,7 +41,7 @@
               value: "{{ ssh_user }}:{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
 
         state: present
-      register: vm_output   # ✅ correct position
+      register: vm_output
 
     - name: Wait for SSH to come up
       wait_for:
