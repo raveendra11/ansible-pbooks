@@ -5,7 +5,7 @@
     - google.cloud
 
   vars:
-    project_id: "project-5f0d9702-ce65-4be7-ba2"   
+    project_id: "project-5f0d9702-ce65-4be7-ba2"
     zone: "us-central1-a"
     machine_type: "e2-medium"
     instance_name: "ansible-vm"
@@ -18,7 +18,7 @@
     - name: Create VM instance
       google.cloud.gcp_compute_instance:
         name: "{{ instance_name }}"
-        machine_type: "zones/{{ zone }}/machineTypes/{{ machine_type }}"
+        machine_type: "{{ machine_type }}"   
         zone: "{{ zone }}"
         project: "{{ project_id }}"
         auth_kind: application
@@ -29,7 +29,6 @@
             initialize_params:
               source_image: "projects/{{ image_project }}/global/images/family/{{ image_family }}"
 
-        
         network_interfaces:
           - network:
               selfLink: "global/networks/default"
@@ -43,23 +42,23 @@
               value: "{{ ssh_user }}:{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
 
         state: present
-      register: vm_output   
+      register: vm_output
 
-    - name: Wait for SSH to come up
+    - name: Wait for SSH
       wait_for:
         host: "{{ vm_output.networkInterfaces[0].accessConfigs[0].natIP }}"
         port: 22
         delay: 10
         timeout: 300
 
-    - name: Add new VM to inventory
+    - name: Add VM to inventory
       add_host:
         name: gcp_vm
         ansible_host: "{{ vm_output.networkInterfaces[0].accessConfigs[0].natIP }}"
         ansible_user: "{{ ssh_user }}"
         ansible_ssh_private_key_file: "~/.ssh/id_rsa"
 
-- name: Configure VM (Install Nginx)
+- name: Install Nginx
   hosts: gcp_vm
   become: yes
 
