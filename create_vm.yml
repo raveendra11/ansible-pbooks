@@ -1,45 +1,29 @@
-- name: Create GCP VM and configure it
-  hosts: localhost
-  gather_facts: no
-  collections:
-    - google.cloud
+- name: Create VM instance
+  google.cloud.gcp_compute_instance:
+    name: "{{ instance_name }}"
+    machine_type: "zones/{{ zone }}/machineTypes/{{ machine_type }}"
+    zone: "{{ zone }}"
+    project: "{{ project_id }}"
+    auth_kind: application
 
-  vars:
-    project_id: "YOUR_GCP_PROJECT_ID"
-    zone: "us-central1-a"
-    machine_type: "e2-medium"
-    instance_name: "ansible-vm"
-    image_family: "debian-11"
-    image_project: "debian-cloud"
-    ssh_user: "YOUR_USERNAME"
+    disks:
+      - auto_delete: true
+        boot: true
+        initialize_params:
+          source_image: "projects/{{ image_project }}/global/images/family/{{ image_family }}"
 
-  tasks:
+    network_interfaces:
+      - network: "global/networks/default"
+        access_configs:
+          - name: "External NAT"
+            type: "ONE_TO_ONE_NAT"
 
-    - name: Create VM instance
-      google.cloud.gcp_compute_instance:
-        name: "{{ instance_name }}"
-        machine_type: "zones/{{ zone }}/machineTypes/{{ machine_type }}"
-        zone: "{{ zone }}"
-        project: "{{ project_id }}"
+    metadata:
+      items:
+        - key: ssh-keys
+          value: "{{ ssh_user }}:{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
 
-        disks:
-          - auto_delete: true
-            boot: true
-            initialize_params:
-              source_image: "projects/{{ image_project }}/global/images/family/{{ image_family }}"
-
-        network_interfaces:
-          - network: "global/networks/default"
-            access_configs:
-              - name: "External NAT"
-                type: "ONE_TO_ONE_NAT"
-
-        metadata:
-          items:
-            - key: ssh-keys
-              value: "{{ ssh_user }}:{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
-
-        state: present
+    state: present
       register: vm_output
 
     - name: Wait for SSH to come up
