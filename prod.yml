@@ -1,0 +1,27 @@
+---
+# group_vars/prod.yml
+# Production-specific overrides — higher replicas, real cert issuer, longer retention
+
+env: prod
+gke_cluster_name: myapp-prod-gke
+gke_region: us-central1
+gcp_project_id: "{{ lookup('env', 'PROD_PROJECT_ID') }}"
+
+# Ingress nginx - HA config for prod
+ingress_nginx_values:
+  controller:
+    replicaCount: 3
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+
+# cert-manager - use production issuer
+cert_manager_issuer: letsencrypt-prod
+
+# Monitoring - longer retention in prod
+prometheus_retention: 30d

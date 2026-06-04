@@ -1,0 +1,23 @@
+---
+# group_vars/dev.yml
+# Dev-specific overrides
+
+env: dev
+gke_cluster_name: myapp-dev-gke
+gke_region: us-central1
+gcp_project_id: "{{ lookup('env', 'DEV_PROJECT_ID') }}"
+
+# Ingress nginx - lighter config for dev
+ingress_nginx_values:
+  controller:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+
+# cert-manager - use staging issuer in dev to avoid rate limits
+cert_manager_issuer: letsencrypt-staging
+
+# Monitoring - lighter retention in dev
+prometheus_retention: 7d

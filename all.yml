@@ -1,0 +1,42 @@
+---
+# group_vars/all.yml
+# Variables shared across ALL environments
+
+# Tool versions - pin these for reproducibility
+gcloud_version: "latest"
+kubectl_version: "1.28.0"
+helm_version: "3.13.0"
+
+# Kubernetes namespaces to create on every cluster
+k8s_namespaces:
+  - name: ingress-nginx
+    labels:
+      managed-by: ansible
+      team: platform
+  - name: cert-manager
+    labels:
+      managed-by: ansible
+      team: platform
+  - name: monitoring
+    labels:
+      managed-by: ansible
+      team: platform
+  - name: apps
+    labels:
+      managed-by: ansible
+      team: platform
+
+# Helm chart versions - pinned for stability
+ingress_nginx_chart_version: "4.8.3"
+cert_manager_chart_version: "1.13.3"
+
+# Common OS packages to install on all managed hosts
+common_packages:
+  - curl
+  - wget
+  - git
+  - unzip
+  - jq
+  - vim
+  - htop
+  - net-tools
