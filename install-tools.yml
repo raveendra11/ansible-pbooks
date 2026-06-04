@@ -1,0 +1,39 @@
+---
+# playbooks/install-tools.yml
+# Purpose: Install gcloud, kubectl, and helm on a local machine or CI runner.
+#          Use this when you don't have a bastion and run commands locally.
+#
+# Usage (local machine):
+#   ansible-playbook playbooks/install-tools.yml -i inventory/dev.ini --limit localhost
+#
+# Usage (CI runner):
+#   ansible-playbook playbooks/install-tools.yml -i inventory/dev.ini --limit localhost
+
+- name: Install DevOps tools on local/CI machine
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Check OS is supported
+      ansible.builtin.fail:
+        msg: "This playbook only supports Debian/Ubuntu"
+      when: ansible_os_family != "Debian"
+      tags: always
+
+  roles:
+    - role: common
+    - role: gcloud
+    - role: kubectl
+    - role: helm
+
+  post_tasks:
+    - name: Verify all tools
+      ansible.builtin.command: "{{ item }}"
+      loop:
+        - gcloud version
+        - kubectl version --client
+        - helm version --short
+      changed_when: false
+      tags: [verify]

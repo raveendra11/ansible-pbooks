@@ -1,0 +1,56 @@
+---
+# roles/common/tasks/main.yml
+# Base OS configuration applied to all managed hosts (bastion, CI runners)
+
+- name: Update apt package cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  tags: [packages]
+
+- name: Install common packages
+  ansible.builtin.apt:
+    name: "{{ common_packages }}"
+    state: present
+  tags: [packages]
+
+- name: Set system timezone
+  community.general.timezone:
+    name: "{{ system_timezone }}"
+  notify: Restart cron
+  tags: [system]
+
+- name: Disable unused services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: stopped
+    enabled: false
+  loop: "{{ disable_services }}"
+  ignore_errors: true       # service may not exist on all hosts
+  tags: [security]
+
+- name: Ensure ansible user exists with no password login
+  ansible.builtin.user:
+    name: ansible
+    shell: /bin/bash
+    create_home: true
+    groups: sudo
+    append: true
+  tags: [users]
+
+- name: Allow ansible user passwordless sudo
+  ansible.builtin.copy:
+    content: "ansible ALL=(ALL) NOPASSWD:ALL\n"
+    dest: /etc/sudoers.d/ansible
+    mode: "0440"
+    validate: visudo -cf %s
+  tags: [users, security]
+
+- name: Disable SSH password authentication
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^PasswordAuthentication"
+    line: "PasswordAuthentication no"
+    state: present
+  notify: Restart sshd
+  tags: [security]

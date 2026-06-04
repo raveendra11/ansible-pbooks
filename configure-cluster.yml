@@ -1,0 +1,63 @@
+---
+# playbooks/configure-cluster.yml
+# Purpose: Post-Terraform GKE cluster setup.
+#          Runs after `terraform apply` to configure namespaces, ingress,
+#          cert-manager, and RBAC on the newly provisioned cluster.
+#
+# Prerequisites:
+#   - GKE cluster must already exist (Terraform applied)
+#   - Bastion must be set up (setup-bastion.yml ran)
+#   - gcloud auth must be configured on the bastion
+#
+# Usage:
+#   ansible-playbook playbooks/configure-cluster.yml -i inventory/dev.ini
+#   ansible-playbook playbooks/configure-cluster.yml -i inventory/prod.ini --extra-vars "env=prod"
+
+- name: Configure GKE cluster post-provisioning
+  hosts: bastion
+  become: false           # kubectl/helm don't need root
+  gather_facts: false
+
+  pre_tasks:
+    - name: Print target cluster
+      ansible.builtin.debug:
+        msg: "Configuring cluster: {{ gke_cluster_name }} in project: {{ gcp_project_id }}"
+      tags: always
+
+    - name: Verify kubectl can reach the cluster
+      ansible.builtin.command: kubectl cluster-info
+      changed_when: false
+      register: cluster_check
+      tags: always
+
+    - name: Fail if cluster unreachable
+      ansible.builtin.fail:
+        msg: "Cannot reach GKE cluster. Check credentials and VPN/bastion connectivity."
+      when: cluster_check.rc != 0
+      tags: always
+
+  roles:
+    - role: k8s_addons    # namespaces, ingress-nginx, cert-manager, RBAC
+
+  post_tasks:
+    - name: List all namespaces (verify)
+      ansible.builtin.command: kubectl get namespaces
+      changed_when: false
+      register: ns_list
+      tags: [verify]
+
+    - name: Show namespaces
+      ansible.builtin.debug:
+        var: ns_list.stdout_lines
+      tags: [verify]
+
+    - name: List all Helm releases (verify)
+      ansible.builtin.command: helm list --all-namespaces
+      changed_when: false
+      register: helm_list
+      tags: [verify]
+
+    - name: Show Helm releases
+      ansible.builtin.debug:
+        var: helm_list.stdout_lines
+      tags: [verify]

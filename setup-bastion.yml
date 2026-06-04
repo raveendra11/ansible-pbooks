@@ -1,0 +1,47 @@
+---
+# playbooks/setup-bastion.yml
+# Purpose: Configure the bastion host that provides access to the private GKE cluster.
+# Run this AFTER Terraform creates the bastion VM.
+#
+# Usage:
+#   ansible-playbook playbooks/setup-bastion.yml -i inventory/dev.ini
+#   ansible-playbook playbooks/setup-bastion.yml -i inventory/prod.ini
+
+- name: Configure bastion host
+  hosts: bastion
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Verify target environment
+      ansible.builtin.debug:
+        msg: "Configuring bastion for environment: {{ env }}"
+      tags: always
+
+    - name: Wait for host to be reachable
+      ansible.builtin.wait_for_connection:
+        timeout: 60
+      tags: always
+
+  roles:
+    - role: common      # base OS hardening + packages
+    - role: gcloud      # gcloud CLI + GKE auth plugin
+    - role: kubectl     # kubectl + kubeconfig from GKE
+    - role: helm        # helm CLI + chart repos
+
+  post_tasks:
+    - name: Confirm all tools installed
+      ansible.builtin.command: "{{ item }}"
+      loop:
+        - gcloud version
+        - kubectl version --client
+        - helm version --short
+      changed_when: false
+      register: tool_check
+      tags: [verify]
+
+    - name: Print tool versions
+      ansible.builtin.debug:
+        msg: "{{ item.stdout }}"
+      loop: "{{ tool_check.results }}"
+      tags: [verify]
